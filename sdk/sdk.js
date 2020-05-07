@@ -1,5 +1,4 @@
 
-const { RpcClient } = require("ontology-ts-sdk")
 const pdp = require("../pdp")
 const config = require("../config")
 const fs = require("../fs")
@@ -7,19 +6,17 @@ const common = require("../common")
 const utils = require("../utils")
 const OntFs = require("./ontfs").OntFs
 const Buffer = require('buffer/').Buffer
+const { client } = require("@ont-dev/ontology-dapi")
+
 class Sdk {
     constructor(
-        _account,
         _sdkConfig,
-        _chain,
         _ontFs,
         _fs,
         _stop,
         _pdpServer
     ) {
-        this.account = _account
         this.sdkConfig = _sdkConfig
-        this.chain = _chain
         this.ontFs = _ontFs
         this.fs = _fs
         this.isStop = _stop
@@ -67,8 +64,8 @@ class Sdk {
      * @returns {Account}
      * @memberof Sdk
      */
-    currentAccount() {
-        return this.account
+    async currentAccount() {
+        return client.api.asset.getAccount()
     }
 
     /**
@@ -77,8 +74,8 @@ class Sdk {
      * @returns {string}
      * @memberof Sdk
      */
-    walletAddress() {
-        return this.currentAccount().address.toBase58()
+    async walletAddress() {
+        return this.currentAccount()
     }
 
     /**
@@ -89,7 +86,7 @@ class Sdk {
      */
     async waitForBlock(blockHeight) {
         try {
-            const currentBlockHeight = await this.chain.getBlockHeight()
+            const currentBlockHeight = await client.api.network.getBlockHeight()
             if (blockHeight <= currentBlockHeight) {
                 return
             }
@@ -117,13 +114,13 @@ class Sdk {
         if (!blockCount) {
             return
         }
-        let blockHeight = await this.chain.getBlockHeight()
+        let blockHeight = await client.api.network.getBlockHeight()
         if (!timeout) {
             timeout = 1
         }
         for (let i = 0; i < timeout; i++) {
             await utils.sleep(1000)
-            let curBlockHeigh = await this.chain.getBlockHeight()
+            let curBlockHeigh = await client.api.network.getBlockHeight()
             if ((curBlockHeigh - blockHeight) >= blockCount) {
                 return true
             }
@@ -594,18 +591,13 @@ class Sdk {
  * init a SDK
  *
  * @param {Object} sdkCfg: sdk config
- * @param {Account} acc: wallet account
  * @returns
  */
-const initSdk = async (sdkCfg, acc) => {
+const initSdk = async (sdkCfg) => {
     const s = new Sdk()
     s.sdkConfig = sdkCfg
-    s.chain = new RpcClient(sdkCfg.chainRpcAddr)
     s.pdpServer = await pdp.newPdp(sdkCfg.pdpVersion)
-    if (acc) {
-        s.account = acc
-    }
-    s.ontFs = new OntFs(acc, sdkCfg.walletPwd, sdkCfg.chainRpcAddr, sdkCfg.gasPrice, sdkCfg.gasLimit)
+    s.ontFs = new OntFs(sdkCfg.gasPrice, sdkCfg.gasLimit)
     if (!s.ontFs) {
         throw new Error("ontfs contract api init failed")
     }

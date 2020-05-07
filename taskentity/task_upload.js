@@ -6,6 +6,7 @@ const { TaskStart, TaskPause, TaskFinish } = require("./const")
 
 const message = require("../network/message")
 const client = require("../network/http/http_client")
+const { client: dapi } = require("@ont-dev/ontology-dapi")
 const Upload_AddTask = 0
 const Upload_FsAddFile = 1
 const Upload_FsGetPdpHashData = 2
@@ -164,14 +165,12 @@ class TaskUpload {
             if (!uploaded) {
                 throw new Error(`contract interface StoreFile called failed`)
             }
-            this.baseInfo.storeTxHash = tx
-            const blockHeightRet = await sdk.globalSdk().chain.getBlockHeightByTxHash(tx).catch((e) => {
+            this.baseInfo.storeTxHash = tx.transaction
+            const blockHeightRet = await dapi.api.network.getBlockHeightByTxHash({hash: tx.transaction}).catch((e) => {
                 console.log("get height err", e)
                 throw e
             })
-            if (blockHeightRet && blockHeightRet.error == 0) {
-                this.baseInfo.storeTxHeight = blockHeightRet.result
-            }
+            this.baseInfo.storeTxHeight = blockHeightRet
             this.baseInfo.progress = Upload_ContractStoreFiles
         }
         console.log('base info', this.baseInfo)
@@ -192,7 +191,7 @@ class TaskUpload {
                 than copyNum(${this.option.copyNum})`)
             }
             for (let fsNode of nodeList.nodesInfo) {
-                const fsNodeAddr = fsNode.nodeAddr.toBase58()
+                const fsNodeAddr = fsNode.nodeAddr
                 if (fsNode.serviceTime < this.option.timeExpired) {
                     console.log(`"CheckFsServerStatus ${fsNodeAddr} error: fsNode.ServiceTime(${fsNode.serviceTime}) 
                     < opt.TimeExpired(${this.option.timeExpired})"`)
@@ -204,7 +203,7 @@ class TaskUpload {
                     continue
                 }
                 const fsNodeNetAddr = common.getHTTPAddrFromNodeNetAddr(fsNode.nodeNetAddr)
-                await this.checkFsServerStatus(sdk.globalSdk().account, fsNodeNetAddr).then(() => {
+                await this.checkFsServerStatus(fsNodeNetAddr).then(() => {
                     fileReceivers[fsNodeNetAddr] = fsNodeAddr
                 }).catch((e) => { })
                 console.log(`receivers =`, fileReceivers)
@@ -280,7 +279,7 @@ class TaskUpload {
         this.upload().then(() => {
             this.baseInfo.status = TaskFinish
         }).catch((e) => {
-            console.log(`file upload failed`, e.toString())
+            console.log(`file upload failed`, JSON.stringify(e))
             this.baseInfo.progress = Upload_Error
             this.baseInfo.errorInfo = e.toString()
             this.baseInfo.status = TaskFinish
@@ -326,12 +325,13 @@ class TaskUpload {
      * @param {string} nodeNetAddr: node http host address
      * @memberof TaskUpload
      */
-    async checkFsServerStatus(account, nodeNetAddr) {
+    async checkFsServerStatus(nodeNetAddr) {
+        const account = await dapi.api.asset.getAccount();
         const sessionId = getUploadSessionId(this.baseInfo.taskID, nodeNetAddr)
         const msg = message.newFileMsg(this.baseInfo.fileHash, message.FILE_OP_UPLOAD_ASK, [
             message.withSessionId(sessionId),
             message.withBlockHashes(this.baseInfo.blockHashes),
-            message.withWalletAddress(account.address.toBase58()),
+            message.withWalletAddress(account),
             message.withTxHash(this.baseInfo.storeTxHash),
             message.withTxHeight(this.baseInfo.storeTxHeight),
         ])
@@ -517,10 +517,11 @@ class TaskUpload {
      * @memberof TaskUpload
      */
     async sendFetchReadyMsg(peerAddr) {
+        const account = await dapi.api.asset.getAccount();
         const sessionId = getUploadSessionId(this.baseInfo.taskID, peerAddr)
         const msg = message.newFileMsg(this.baseInfo.fileHash, message.FILE_OP_UPLOAD_RDY, [
             message.withSessionId(sessionId),
-            message.withWalletAddress(sdk.globalSdk().walletAddress()),
+            message.withWalletAddress(account),
             message.withBlocksRoot(this.baseInfo.fileHash),
             message.withTxHash(this.baseInfo.storeTxHash),
             message.withTxHeight(this.baseInfo.storeTxHeight),

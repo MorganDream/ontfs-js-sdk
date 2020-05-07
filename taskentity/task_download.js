@@ -145,7 +145,7 @@ class TaskDownload {
      */
     async blocksDownload() {
         this.initMicroTasks()
-        await this.getValidServers(sdk.globalSdk().account).catch((err) => {
+        await this.getValidServers(await sdk.globalSdk().account).catch((err) => {
             throw err
         })
         await this.pledge().catch((err) => {
