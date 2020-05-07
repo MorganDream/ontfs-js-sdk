@@ -203,15 +203,15 @@ class OntFs {
 	 * @memberof OntFs
 	 */
 	async fileReadPledge(fileHash, plans) {
-		let readPlans = [];
-		for (let p of plans) {
-			readPlans.push(
-				new ReadPlan(new Address(p.nodeAddr), p.maxReadBlockNum, p.haveReadBlockNum, 0)
-			);
-		}
+		// let readPlans = [];
+		// for (let p of plans) {
+		// 	readPlans.push(
+		// 		new ReadPlan(new Address(p.nodeAddr), p.maxReadBlockNum, p.haveReadBlockNum, 0)
+		// 	);
+		// }
 		return client.api.fs.fileReadPledge({
 			fileHash: fileHash,
-			readPlans: readPlans,
+			readPlans: plans,
 			gasPrice: this.gasPrice,
 			gasLimit: this.gasLimit
 		});

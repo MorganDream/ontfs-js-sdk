@@ -7,6 +7,7 @@ const { hexstr2str } = require("ontology-ts-sdk").utils
 const message = require("../network/message")
 const client = require("../network/http/http_client")
 const Buffer = require('buffer/').Buffer
+const { client: dapi } = require("@ont-dev/ontology-dapi")
 
 const Download_AddTask = 0
 const Download_FsFoundFileServers = 1
@@ -109,8 +110,8 @@ class TaskDownload {
             let nodeAddrs = []
             let walletAddrs = []
             for (let pdpRecord of pdpRecordList.pdpRecords) {
-                const nodeInfo = await sdk.globalSdk().ontFs.getNodeInfo(pdpRecord.nodeAddr.toBase58()).catch((e) => {
-                    console.log(`get node ${pdpRecord.nodeAddr.toBase58()} info err: ${e.toString()}`)
+                const nodeInfo = await sdk.globalSdk().ontFs.getNodeInfo(pdpRecord.nodeAddr).catch((e) => {
+                    console.log(`get node ${pdpRecord.nodeAddr} info err: ${e.toString()}`)
                 })
                 if (!nodeInfo) {
                     continue
@@ -145,7 +146,8 @@ class TaskDownload {
      */
     async blocksDownload() {
         this.initMicroTasks()
-        await this.getValidServers(await sdk.globalSdk().account).catch((err) => {
+        const account = await dapi.api.asset.getAccount();
+        await this.getValidServers(account).catch((err) => {
             throw err
         })
         await this.pledge().catch((err) => {
@@ -400,7 +402,7 @@ class TaskDownload {
      */
     async getValidServers(account) {
         const msg = message.newFileMsg(this.option.fileHash, message.FILE_OP_DOWNLOAD_ASK, [
-            message.withWalletAddress(account.address.toBase58()),
+            message.withWalletAddress(account),
         ])
         const action = async (res, addr) => {
             const result = await this.responseProcess(res, addr)
@@ -431,6 +433,7 @@ class TaskDownload {
                 nodeAddr: peerDownloadInfo.peerWallet,
                 maxReadBlockNum: this.baseInfo.fileBlockCount,
                 haveReadBlockNum: 0,
+                numOfSettlements: 0
             }
             readPlan.push(plan)
         }
@@ -440,8 +443,9 @@ class TaskDownload {
             throw err
         })
         console.log('readPledgeRet', readPledgeRet)
+        const account = await dapi.api.asset.getAccount();
         const readPledge = await sdk.globalSdk().ontFs.getFileReadPledge(this.option.fileHash,
-            sdk.globalSdk().account.address).catch((err) => {
+            account).catch((err) => {
                 console.log(`contract interface FileReadPledge called failed`)
                 throw err
             })
@@ -464,7 +468,8 @@ class TaskDownload {
         const peerTransferInfo = this.transferInfo.blockDownloadInfo[peerNetAddr]
         peerTransferInfo.index = blocksReq[0].Index
         const sessionId = getDownloadSessionId(this.baseInfo.taskID, peerTransferInfo.peerWallet)
-        const reqMsg = message.newBlockFlightsReqMsg(this.option.fileHash, sdk.globalSdk().walletAddress(),
+        const account = await dapi.api.asset.getAccount();
+        const reqMsg = message.newBlockFlightsReqMsg(this.option.fileHash, account,
             blocksReq, message.BLOCK_FLIGHTS_OP_GET, [message.withSessionId(sessionId)])
         console.log('reqMsg', reqMsg, peerNetAddr)
         const blocksReqM = {}
