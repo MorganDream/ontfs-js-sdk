@@ -95,6 +95,9 @@ class TaskDownload {
     async download() {
         this.baseInfo.status = TaskStart
         if (this.baseInfo.progress < Download_FsFoundFileServers) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             const fileInfo = await sdk.globalSdk().ontFs.getFileInfo(this.option.fileHash).catch((err) => {
                 throw new Error(`get file info err: ${err.toString()}`)
             })
@@ -145,6 +148,9 @@ class TaskDownload {
      * @memberof TaskDownload
      */
     async blocksDownload() {
+        if (this.option.stepCallback) {
+            this.option.stepCallback(this.baseInfo.progress)
+        }
         this.initMicroTasks()
         const account = await dapi.api.asset.getAccount();
         await this.getValidServers(account).catch((err) => {
@@ -217,6 +223,9 @@ class TaskDownload {
         } else {
             this.baseInfo.progress = Download_Done
             this.transferInfo.blockDownloadNotify.finished = true
+        }
+        if (this.option.stepCallback) {
+            this.option.stepCallback(this.baseInfo.progress)
         }
     }
     /**
@@ -427,6 +436,9 @@ class TaskDownload {
      * @memberof TaskDownload
      */
     async pledge() {
+        if (this.option.stepCallback) {
+            this.option.stepCallback(this.baseInfo.progress)
+        }
         let readPlan = []
         for (let [peerAddr, peerDownloadInfo] of Object.entries(this.transferInfo.blockDownloadInfo)) {
             let plan = {
@@ -610,6 +622,9 @@ class TaskDownload {
      * @memberof TaskDownload
      */
     async combine() {
+        if (this.option.stepCallback) {
+            this.option.stepCallback(this.baseInfo.progress)
+        }
         let hasCutPrefix = this.transferInfo.combineInfo.hasCutPrefix
         const isFileEncrypted = this.transferInfo.combineInfo.isFileEncrypted
         const file = this.transferInfo.combineInfo.fileStream

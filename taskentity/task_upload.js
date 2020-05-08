@@ -111,6 +111,9 @@ class TaskUpload {
         let fileEnc = false
         this.baseInfo.status = TaskStart
         if (this.baseInfo.progress < Upload_FsAddFile) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             this.baseInfo.filePrefix = getFilePrefix(this.option)
             if (this.option.encPassword && this.option.encPassword.length) {
                 fileEnc = true
@@ -133,6 +136,9 @@ class TaskUpload {
             }
         }
         if (this.baseInfo.progress < Upload_FsGetPdpHashData) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             await this.checkUploadTask().catch((e) => {
                 throw e
             })
@@ -145,6 +151,9 @@ class TaskUpload {
             this.baseInfo.progress = Upload_FsGetPdpHashData
         }
         if (this.baseInfo.progress < Upload_ContractStoreFiles) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             const fileStore = {
                 fileHash: this.baseInfo.fileHash,
                 fileDesc: this.option.fileDesc,
@@ -175,12 +184,18 @@ class TaskUpload {
         }
         console.log('base info', this.baseInfo)
         if (this.baseInfo.progress < Upload_FilePreTransfer) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             this.baseInfo.allOffset = await sdk.globalSdk().fs.getFileAllBlockHashAndOffset(this.baseInfo.fileHash).catch((err) => {
                 throw new Error(`[Upload] GetFileAllBlockHashAndOffset error: ${err.toString()}`)
             })
             this.baseInfo.progress = Upload_FilePreTransfer
         }
         if (this.baseInfo.progress < Upload_FileTransferBlocks) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             let fileReceivers = {}
             const nodeList = await sdk.globalSdk().ontFs.getNodeInfoList(common.DEFAULT_FS_NODES_LIST).catch((e) => {
                 throw e
@@ -223,6 +238,9 @@ class TaskUpload {
         }
 
         if (this.baseInfo.progress < Upload_WaitPdpRecords) {
+            if (this.option.stepCallback) {
+                this.option.stepCallback(this.baseInfo.progress)
+            }
             let waitPdpSecond = 0
             let isPdpCommitted = false
             let checkPdpErr
@@ -258,6 +276,9 @@ class TaskUpload {
             this.baseInfo.progress = Upload_WaitPdpRecords
         }
         this.baseInfo.progress = Upload_Done
+        if (this.option.stepCallback) {
+            this.option.stepCallback(this.baseInfo.progress)
+        }
         console.log("pdp finish")
     }
 
